@@ -46,7 +46,26 @@ export async function handler(event: AWSLambda.FirehoseTransformationEvent) {
     }
   }
 
-  return await checkFirehoseRecords(firehoseRecordsOutput);
+  const checkedRecords = await checkFirehoseRecords(firehoseRecordsOutput);
+  for (const record of checkedRecords.records) {
+    mapFirehoseRecord(record);
+  }
+  return checkedRecords;
+}
+
+function mapFirehoseRecord(record: AWSLambda.FirehoseTransformationResultRecord) {
+  if (record.result != 'Ok') {
+    return;
+  }
+  const payload = Buffer.from(record.data, 'base64');
+  const unzippedPayload = zlib.gunzipSync(payload).toString('utf-8');
+  const jsonParsedPayload = JSON.parse(unzippedPayload);
+
+  // do stuff
+  jsonParsedPayload.extraTestField = 'testValue';
+
+  record.data = zlib.gzipSync(Buffer.from(JSON.stringify(jsonParsedPayload)), { level: 6 }).toString('base64');
+  return;
 }
 
 async function processFirehoseInputRecord(firehoseRecord: AWSLambda.FirehoseTransformationEventRecord) {
