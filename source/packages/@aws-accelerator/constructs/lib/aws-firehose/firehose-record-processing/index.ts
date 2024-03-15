@@ -61,11 +61,20 @@ function mapFirehoseRecord(record: AWSLambda.FirehoseTransformationResultRecord)
   const unzippedPayload = zlib.gunzipSync(payload).toString('utf-8');
   const jsonParsedPayload = JSON.parse(unzippedPayload);
 
-  // do stuff
-  jsonParsedPayload.extraTestField = 'testValue';
+  const str = mapJsonToCsv(jsonParsedPayload);
 
-  record.data = zlib.gzipSync(Buffer.from(JSON.stringify(jsonParsedPayload)), { level: 6 }).toString('base64');
+  record.data = zlib.gzipSync(Buffer.from(str), { level: 6 }).toString('base64');
   return;
+}
+
+function mapJsonToCsv(json: CloudWatchLogsToFirehoseRecord): string {
+  let csv = '';
+  const logEvents = json.logEvents;
+  for (const ev of logEvents) {
+    const timestampZulu = new Date(ev.timestamp).toISOString();
+    csv += `${timestampZulu} ${ev.message}\n`;
+  }
+  return csv;
 }
 
 async function processFirehoseInputRecord(firehoseRecord: AWSLambda.FirehoseTransformationEventRecord) {
